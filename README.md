@@ -12,3 +12,27 @@ The framework has a built-in GUI that prompts the user for the network mode and 
 |**Local**      |Scan the local machine that EnCase is installed on (mostly for debugging and testing)|
   
 #Usage
+```c++
+include "EncaseNetworkFrameworkLib"
+
+class MyNetClass : NetworkFrameworkClass {
+  MyNetClass () :
+    super("Demo Class")
+  {
+  }
+  
+  virtual void ScanNode (ConnectionClass con, SnapshotClass snap, DeviceInfoClass devList) {
+    foreach (DeviceInfoClass di in devList) {
+      Console.WriteLine(di.Name());
+    }
+  }
+}
+
+class MainClass {
+  void Main() {
+    MyNetClass nf();
+    nf.ShowDialog();
+    nf.RunScan();
+  }
+}
+```
