@@ -1,0 +1,359 @@
+//===============================================
+// EnCase Network Framework Library
+// Written by: James Habben
+// Version: 1.0
+// Updated: 2014-12-1
+//===============================================
+
+class NetworkFrameworkClass {
+  DialogClass Dialog;
+  SafeClass Safe;
+  RoleClass Role;
+  int ScanMode;
+  uint DirectNetworkPort;
+  bool ServletCheckin,
+       GetSnapshot;
+  String ScriptName,
+         HelpText,
+         Username,
+         Rolename,
+         KeyfilePath,
+         KeyfilePassword,
+         NetworkName,
+         DirectNetworkName,
+         ExportPath;
+
+  NetworkFrameworkClass (const String &scriptName) :
+    Safe(),
+    DirectNetworkPort = 4445,
+    GetSnapshot = true,
+    ScriptName = scriptName
+  {
+  }
+
+  int ShowDialog () {
+    if (Dialog) {
+      return Dialog.Execute();
+    }
+    else {
+      Dialog = new NetworkDialogClass(this, ScriptName);
+      int ret = Dialog.Execute();
+      delete Dialog;
+      return ret;
+    }
+  }
+
+  void RunScan () {
+    PreScan();
+
+    // local scan
+    if (ScanMode == 2) {
+      SnapshotClass ss;
+      if (GetSnapshot) {
+        ss = new SnapshotClass();
+        LocalMachine.ReadSnapshot(ss);
+      }
+      ScanNode(LocalMachine, ss, GetDeviceList(LocalMachine));
+
+    // direct network scan
+    } else if (ScanMode == 1) {
+      ConnectionClass conn();
+      Console.WriteLine("Connecting to {0}", DirectNetworkName);
+      if (SystemClass::EnCaseDirectNode(conn, KeyfilePath, KeyfilePassword, DirectNetworkName, DirectNetworkPort)) {
+        Console.WriteLine("  Connected Successfully.  Processing Volumes.");
+        SnapshotClass ss;
+        if (GetSnapshot) {
+          ss = new SnapshotClass();
+          conn.ReadSnapshot(ss);
+        }
+        ScanNode(conn, ss, GetDeviceList(conn));
+      } else {
+        Console.WriteLine("  Connection Failed. [{0}]", SystemClass::LastError());
+      }
+
+    // enterprise scan
+    } else {
+      BatchClass batch(Safe, Role, Safe.TotalConnections(), GetSnapshot ? ConnectionClass::SNAPSHOT : 0);
+      if (!batch.Add(ParseText(NetworkName), TRYCONNECT | (ServletCheckin ? WAITING : 0))) {
+        SystemClass::Message(MBOK | ICONSTOP, ScriptName, "There was a problem with the network address: " + NetworkName);
+        return;
+      }
+      batch.SetPriority(BatchClass::HIGH);
+      if (batch.Start()) {
+        Console.WriteLine("Scanning " + batch.TotalMachines() + " nodes using " + batch.ConnectionsUsed() + " connection(s)");
+        if (ServletCheckin)
+          Console.WriteLine("  Waiting for Servlet Check-in");
+        do {
+          ConnectionClass conn;
+          SnapshotClass ss(null);
+          String message;
+          String name;
+          BatchClass::ConnectionTypes reply = batch.GetConnection(conn, ss, name, message, 0);
+          if (reply == BatchClass::BATCHCONNECT) {
+            SystemClass::StatusMessage("Processing " + name + " | " + ScriptName);
+            ScanNode(conn, ss, GetDeviceList(conn));
+            SystemClass::StatusMessage(ScriptName);
+          } else if (reply == BatchClass::BATCHWAIT)
+            SystemClass::Sleep(500);
+          else if (reply == BatchClass::BATCHERROR)
+            Console.WriteLine("Could Not Connect To " + name + " SAFE Error Message: " + message);
+          else if (reply == BatchClass::BATCHFATAL) {
+            String err = SystemClass::LastError();
+            Console.WriteLine("The SAFE is not responding: " + err + ". This Enscript will terminate.");
+            return;
+          }
+        } while (reply != BatchClass::BATCHDONE);
+      }
+    }
+
+    PostScan();
+  }
+
+  virtual void PreScan () {
+
+  }
+
+  virtual void PostScan () {
+
+  }
+
+  virtual void ScanNode (ConnectionClass con, SnapshotClass snap, DeviceInfoClass devList) {
+
+  }
+
+  EntryClass GetEntryRoot (DeviceInfoClass di) {
+    CaseClass cc();
+    DeviceClass dev = di.Mount(cc);
+    return dev.GetRootEntry();
+  }
+
+  DeviceInfoClass GetDeviceList (ConnectionClass con) {
+    DeviceInfoClass dicoll();
+    dicoll.Create(con);
+    return dicoll;
+  }
+
+  NetworkClass ParseText(String t) {
+    NetworkClass SweepNet();
+    while (t) {
+      int    end  = t.Find("\n");
+      String line = end < 0 ? t : t.SubString(0, end);
+      int    dash = line.Find("-");
+      if (dash >= 0) {
+        IPClass ip1(ExtractIP(line.SubString(0, dash))),
+                ip2(ExtractIP(line.SubString(dash+1, -1)));
+        if (ip1 && !ip2) {
+          String ipstring = ip1;
+          ipstring.ReplaceExtension(line.SubString(dash+1));
+          ip2 = ipstring;
+        }
+        if (ip1 && ip2) {
+          NetworkClass n(SweepNet, "IP Range", NodeClass::SELECTED);
+          n.SetStart(ip1);
+          n.SetStop(ip2);
+        }
+        else
+          NetworkClass n(SweepNet, line, NodeClass::SELECTED);
+      }
+      else if (line != "")  {
+        NetworkClass n(SweepNet, line, NodeClass::SELECTED);
+      }
+      if (end >= 0)
+        t.Delete(0, end+1);
+      else
+        break;
+    }
+    return SweepNet;
+  }
+
+  String ExtractIP(const String &s) {
+    String ret = s;
+    ret.Trim(" ", String::TRIMSTART | String::TRIMEND);
+    return ret.IsValidIPAddress() ? ret : "";
+  }
+}
+
+class NetworkDialogClass : DialogClass {
+  NetworkFrameworkClass N;
+  String NetworkName;
+
+  ButtonClass Btn_Help;
+  RadioButtonClass Rdo_Mode;
+  ButtonClass Btn_SafeLogon;
+  StringEditClass Str_Username;
+  ButtonClass Btn_Role;
+  StringEditClass Str_Rolename;
+  CheckBoxClass Chk_ServletCheckin;
+  PathEditClass Pth_Keyfile;
+  StringEditClass Str_KeyfilePassword;
+  ButtonClass Btn_CheckPassword;
+  ImageWindowClass Img_PasswordCheck;
+  StringEditClass Str_Network;
+  StringEditClass Str_DirectNetwork;
+  UIntEditClass Unt_DirectNetworkPort;
+  PathEditClass Pth_ExportPath;
+
+  NetworkDialogClass (NetworkFrameworkClass n, const String &windowTitle = "Network Framework") :
+    super (null, windowTitle),
+    N = n,
+    Btn_Help (this, "&Help", START, START, DEFAULT, DEFAULT, 0),
+    Rdo_Mode (this, "Scan Run Mode", START, NEXT, DEFAULT, DEFAULT, HORIZONTAL, N.ScanMode, "Enterprise Servlet(s)\tDirect Servlet\tLocal System"),
+    Btn_SafeLogon (this, "Safe &Logon", START, NEXT, 70, DEFAULT, 0),
+    Str_Username (this, "", NEXT, SAME, 100, DEFAULT, READONLY, N.Username, 200, 0),
+    Btn_Role (this, "Choose &Role", START, NEXT, 70, DEFAULT, 0),
+    Str_Rolename (this, "", NEXT, SAME, 100, DEFAULT, READONLY, N.Rolename, 200, 0),
+    Chk_ServletCheckin (this, "Wait for Servlet Check-in", START, NEXT, DEFAULT, DEFAULT, 0, N.ServletCheckin),
+    Pth_Keyfile (this, "Private Key File for Servlet", 220, 75, 250, DEFAULT, 0, N.KeyfilePath, FILEOPEN, "Private Key File\t*.PrivateKey"),
+    Str_KeyfilePassword (this, "Password", 220, NEXT, 150, DEFAULT, PASSWORD, N.KeyfilePassword, 200, 0),
+    Btn_CheckPassword (this, "Check Password", NEXT, SAME2, DEFAULT, DEFAULT, 0),
+    Img_PasswordCheck (this, "", NEXT, SAME, 14, 12, 0, 0),
+    Str_Network (this, "Machine &IP/DNS", START, NEXT, 200, 50, 0, N.NetworkName, 200, 0),
+    Str_DirectNetwork (this, "Single Machine IP/DNS", 220, SAME, 200, DEFAULT, 0, N.DirectNetworkName, 100, 0),
+    Unt_DirectNetworkPort (this, "Port #", NEXT, SAME, 40, DEFAULT, 0, N.DirectNetworkPort, 1, 65535, 0),
+    Pth_ExportPath (this, "LEF Export Folder", START, 200, 300, DEFAULT, 0, N.ExportPath, 0)
+  {
+  }
+
+  virtual void Setup () {
+    super::Setup();
+    EnableClose(false);
+    Btn_Role.Enable(false);
+    Str_Network.Enable(false);
+    Pth_ExportPath.Enable(false);
+    Chk_ServletCheckin.Enable(false);
+  }
+
+  virtual void CheckControls () {
+    bool enableControls = Rdo_Mode.GetValue() == 2 ||
+                          (Rdo_Mode.GetValue() == 0 && N.Safe.UserName() ||
+                          (Rdo_Mode.GetValue() == 1 && Pth_Keyfile.GetText() && Str_KeyfilePassword.GetText() && Str_DirectNetwork.GetText()));
+    // Safe controls
+    Btn_SafeLogon.Enable(Rdo_Mode.GetValue() == 0);
+    Btn_Role.Enable(enableControls && Rdo_Mode.GetValue() == 0);
+    Chk_ServletCheckin.Enable(enableControls && Rdo_Mode.GetValue() == 0);
+    Str_Network.Enable(enableControls && Rdo_Mode.GetValue() == 0);
+
+    // Direct network controls
+    Pth_Keyfile.Enable(Rdo_Mode.GetValue() == 1);
+    Str_KeyfilePassword.Enable(Rdo_Mode.GetValue() == 1);
+    Str_DirectNetwork.Enable(Rdo_Mode.GetValue() == 1);
+    Btn_CheckPassword.Enable(Rdo_Mode.GetValue() == 1 && Str_KeyfilePassword.GetText() && Pth_Keyfile.GetText());
+    Unt_DirectNetworkPort.Enable(Rdo_Mode.GetValue() == 1);
+
+    Pth_ExportPath.Enable(enableControls);
+    EnableClose(enableControls);
+  }
+
+  virtual void ChildEvent(const WindowClass::EventClass &event)  {
+    if (Btn_SafeLogon.Matches(event))  {
+      if (N.Safe.Logon(this) && N.Safe.UserName().Compare("keymaster") != 0) {
+        Str_Username.SetText(N.Safe.UserName());
+        N.Role = N.Safe.RoleRoot().FirstChild();
+        Str_Rolename.SetText(N.Role.Name());
+      }
+      if (N.Safe.UserName().Compare("keymaster") == 0)
+        SystemClass::Message(SystemClass::MBOK | SystemClass::ICONSTOP, "No!", "No Keymaster for you!!1!");
+    } else if (Rdo_Mode.Matches(event)) {
+      if (Rdo_Mode.GetValue() == 2) {
+        NetworkName = Str_Network.GetText();
+        Str_Network.SetText("LocalMachine");
+      } else {
+        if (Rdo_Mode.GetValue() == 1) {
+          Str_Network;
+        }
+        Str_Network.SetText(NetworkName);
+      }
+    } else if (Btn_Help.Matches(event)) {
+      SystemClass::Message(MBOK | ICONINFORMATION, N.ScriptName, N.HelpText);
+    } else if (Btn_Role.Matches(event)) {
+      RoleDialogClass diag(this, N);
+      if (diag.Execute() != SystemClass::CANCEL)
+        Str_Rolename.SetText(N.Role.Name());
+    } else if (Btn_CheckPassword.Matches(event)) {
+      SafeClass safe();
+      LocalFileClass lf();
+      if (lf.Open(Pth_Keyfile.GetText())) {
+        bool status = safe.ReadUserKey("asdf", lf, Str_KeyfilePassword.GetText());
+        if (status == true) {
+          ImageClass img();
+          img.CreateIcon(IconClass::OK);
+          Img_PasswordCheck.SetImage(img);
+        } else {
+          ImageClass img();
+          img.CreateIcon(IconClass::EXCLUDED);
+          Img_PasswordCheck.SetImage(img);
+        }
+      }
+    } else if (Str_KeyfilePassword.Matches(event)) {
+      ImageClass img();
+      img.CreateIcon(IconClass::REFRESH);
+      Img_PasswordCheck.SetImage(img);
+    }
+
+    super::ChildEvent(event);
+  }
+
+  virtual bool CanClose() {
+    LocalMachine.CreateFolder(Pth_ExportPath.GetText(), ConnectionClass::CREATEFOLDERALL);
+    bool retval = super::CanClose();
+    if (retval) {
+      if (!Pth_ExportPath.GetText()) {
+        SystemClass::Message(SystemClass::MBOK, "No Export Path", "Choose an export path.");
+        return false;
+      }
+      if (Pth_ExportPath.GetText().LastChar() != '\\')
+        Pth_ExportPath.SetText(Pth_ExportPath.GetText() + "\\");
+      return true;
+    }
+    return false;
+  }
+
+  class RoleDialogClass: DialogClass {
+    NetworkFrameworkClass N;
+    TreeEditClass   Tre_Role;
+
+    RoleDialogClass (DialogClass parent, NetworkFrameworkClass n) :
+      DialogClass(parent, "Choose Role"),
+      N = n,
+      Tre_Role (this, "Role", START, START, 240, 130, 0, N.Safe.RoleRoot(), 0)
+    {
+    }
+
+    virtual bool CanClose() {
+      if (super::CanClose()) {
+        N.Role = RoleClass::TypeCast(Tre_Role.GetValue());
+        return true;
+      }
+      return false;
+    }
+  }
+}
+
+
+#ifdef RunLib
+// Demo code only run with #define RunLib
+
+class NetFraClass : NetworkFrameworkClass {
+  NetFraClass () :
+    super("Demo Class"),
+    HelpText("This is some example text to explain the usage when the user clicks the help button")
+  {
+  }
+
+  virtual void ScanNode (ConnectionClass con, SnapshotClass snap, DeviceInfoClass devList) {
+    Console.WriteLine("Host: {0}", con.Name());
+    foreach (DeviceInfoClass di in devList) {
+      Console.WriteLine("  {0}: {1}", di.IsPhysical() ? "Physical" : "Logical", di.Name());
+    }
+  }
+}
+
+class MainClass {
+  void Main() {
+    NetFraClass nf();
+    nf.ShowDialog();
+    nf.RunScan();
+  }
+}
+
+#endif
