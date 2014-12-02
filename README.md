@@ -11,7 +11,8 @@ The framework has a built-in GUI that prompts the user for the network mode and 
 |**Direct**     |Contact individual nodes using the Direct Servlet function of EnCase Forensic|
 |**Local**      |Scan the local machine that EnCase is installed on (mostly for debugging and testing)|
   
-#Usage
+#Demo Code
+This code will first prompt the user for the network mode and hosts to scan.  Then it will list the physical and logical drives that are attached to the remote node(s).
 ```c++
 include "EncaseNetworkFrameworkLib"
 
@@ -22,8 +23,9 @@ class MyNetClass : NetworkFrameworkClass {
   }
   
   virtual void ScanNode (ConnectionClass con, SnapshotClass snap, DeviceInfoClass devList) {
+    Console.WriteLine("Host: {0}", con.Name());
     foreach (DeviceInfoClass di in devList) {
-      Console.WriteLine(di.Name());
+      Console.WriteLine("  {0}: {1}", di.IsPhysical() ? "Physical" : "Logical", di.Name());
     }
   }
 }
@@ -35,4 +37,10 @@ class MainClass {
     nf.RunScan();
   }
 }
+```
+#Output to Console:
+```
+Host: Local Machine
+  Logical: C
+  Physical: 0
 ```
