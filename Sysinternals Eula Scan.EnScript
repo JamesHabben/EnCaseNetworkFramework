@@ -1,0 +1,46 @@
+include "EncaseNetworkFrameworkLib"
+
+class EulaScanClass : NetworkFrameworkClass {
+  RegCommandClass RegCmd;
+
+  EulaScanClass () :
+    super("Sysinternals Eula Scan"),
+    RegCmd()
+
+  {
+    new RegCommandClass(RegCmd, "Sysinternals", READKEY, HKEY_ENTRY_HIVE, "Software\\Sysinternals", "", 0, -1);
+  }
+
+  virtual void ScanNode (ConnectionClass con, SnapshotClass snap, DeviceInfoClass devList) {
+    foreach (DeviceInfoClass di in devList) {
+      if (di.IsPhysical() == false) {
+        EntryClass root = GetEntryRoot(di);
+        if (root.Find("users") && root.Find("windows")) {
+          forall (EntryClass entry in root.Find("users")) {
+            if (entry.Name().Compare("ntuser.dat") == 0) {
+              RegistryClass reg(entry);
+              RegValueClass regValues();
+              reg.Run(RegCmd, regValues);
+              forall (RegValueClass rv in regValues) {
+                if (rv.Name().Compare("EulaAccepted") == 0) {
+                  Console.WriteLine("{0}: {1} ({2})", con.Name(), rv.Parent().Name(), rv.Value());
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+class MainClass {
+  void Main(CaseClass c) {
+    SystemClass::ClearConsole(1);
+    EulaScanClass scan();
+    scan.ShowDialog();
+    Console.WriteLine("Starting Scan...");
+    scan.RunScan();
+    Console.WriteLine("Scan Finished.");
+  }
+}
