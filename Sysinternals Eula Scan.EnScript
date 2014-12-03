@@ -1,3 +1,9 @@
+//===============================================
+// Sysinternals Eula Registry Scanner
+// Written by: James Habben
+// Version: 1.0
+// Updated: 2014-12-2
+//===============================================
 include "EncaseNetworkFrameworkLib"
 
 class EulaScanClass : NetworkFrameworkClass {
