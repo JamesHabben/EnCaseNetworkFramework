@@ -11,6 +11,9 @@ class EulaScanClass : NetworkFrameworkClass {
 
   EulaScanClass () :
     super("Sysinternals Eula Scan"),
+    HelpText("Scan a network for the existance of eula registry keys indicating usage of a Sysinternals "
+             "tool on each node.  Output is currently in the console tab and lists each tool that "
+             "has the EulaAccepted value name in NTUSER.DAT\\Software\\Sysinternals subkeys."),
     RegCmd()
 
   {
