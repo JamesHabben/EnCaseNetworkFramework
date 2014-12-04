@@ -2,19 +2,19 @@
 |Script|Description|Screen|
 |---|---|---|
 |**Sysinternals Eula Scan**|Scan a network for the existance of eula registry keys indicating usage of a Sysinternals tool on each node.  Output is currently in the console tab and lists each tool that has the EulaAccepted value name in NTUSER.DAT\\Software\\Sysinternals subkeys.|<a href="http://imgur.com/liFAj7Z"><img src="http://i.imgur.com/liFAj7Z.png" title="source: imgur.com" width=100 /></a>|
-#EnCaseNetworkFramework
+#EnCase Network Framework Library
 This is a framework written in EnScript to utilize the network capabilities of EnCase.  The purpose is to allow for someone to build a quick network enabled EnScript to respond quickly to threats with minimal code being written.  
 
 The framework has a built-in GUI that prompts the user for the network mode and the network nodes to scan.  This GUI can be modified to request more specific information from the user.
 
-#Network modes
+##Network modes
 |Mode|Description|
 |----|----|
 |**Enterprise** |Utilize the EnCase Enterprise SAFE infrastructure to scan a full network|
 |**Direct**     |Contact individual nodes using the Direct Servlet function of EnCase Forensic|
 |**Local**      |Scan the local machine that EnCase is installed on (mostly for debugging and testing)|
   
-#Demo Code
+##Demo Code
 This code will first prompt the user for the network mode and hosts to scan.  Then it will list the physical and logical drives that are attached to the remote node(s).
 ```c++
 include "EncaseNetworkFrameworkLib"
@@ -42,13 +42,13 @@ class MainClass {
   }
 }
 ```
-#Output to Console
+##Output to Console
 ```
 Host: Local Machine
   Logical: C
   Physical: 0
 ```
-#Screen Shots of Standard Dialog
+##Screen Shots of Standard Dialog
 <img src="http://i.imgur.com/PmZwJm4.png" title="source: imgur.com" />
 
 <img src="http://i.imgur.com/XOy38TV.png" title="source: imgur.com" />
