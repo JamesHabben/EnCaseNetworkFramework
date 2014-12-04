@@ -1,7 +1,7 @@
 #Scripts using the Framework
-|Script|Description|
-|---|---|
-|**Sysinternals Eula Scan**|Scan a network for the existance of eula registry keys indicating usage of a Sysinternals tool on each node.  Output is currently in the console tab and lists each tool that has the EulaAccepted value name in NTUSER.DAT\\Software\\Sysinternals subkeys.|
+|Script|Description|Screen|
+|---|---|---|
+|**Sysinternals Eula Scan**|Scan a network for the existance of eula registry keys indicating usage of a Sysinternals tool on each node.  Output is currently in the console tab and lists each tool that has the EulaAccepted value name in NTUSER.DAT\\Software\\Sysinternals subkeys.|<a href="http://imgur.com/liFAj7Z"><img src="http://i.imgur.com/liFAj7Z.png" title="source: imgur.com" width=100 /></a>|
 #EnCaseNetworkFramework
 This is a framework written in EnScript to utilize the network capabilities of EnCase.  The purpose is to allow for someone to build a quick network enabled EnScript to respond quickly to threats with minimal code being written.  
 
