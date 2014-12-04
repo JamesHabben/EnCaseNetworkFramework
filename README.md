@@ -1,5 +1,8 @@
-EnCaseNetworkFramework
-======================
+#Scripts using the Framework
+|Script|Description|
+|---|---|
+|**Sysinternals Eula Scan**|Scan a network for the existance of eula registry key indicating usage of a sysinternals tool on each node|
+#EnCaseNetworkFramework
 This is a framework written in EnScript to utilize the network capabilities of EnCase.  The purpose is to allow for someone to build a quick network enabled EnScript to respond quickly to threats with minimal code being written.  
 
 The framework has a built-in GUI that prompts the user for the network mode and the network nodes to scan.  This GUI can be modified to request more specific information from the user.
