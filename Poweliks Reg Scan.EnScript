@@ -1,0 +1,92 @@
+//===============================================
+// Poweliks Registry Scanner
+// Written by: James Habben
+// Version: 1.0
+// Updated: 2014-12-10
+//===============================================
+include "EncaseNetworkFrameworkLib"
+
+class EulaScanClass : NetworkFrameworkClass {
+  String FileNames;
+  NameListClass FileList;
+  SearchClass Search;
+  ItemCacheClass ItemCache;
+  CaseClass C;
+
+  EulaScanClass () :
+    super("Poweliks Reg Scan"),
+    HelpText("Scan a network for the existance of Poweliks style registry keys used for persistence"),
+    FileNames("system, software, ntuser.dat"),
+    FileList(),
+    Search(),
+    C()
+
+  {
+    FileList.Parse(FileNames, ",");
+    Search.AddKeyword("rundll32.exe", KeywordClass::UNICODE);
+    Search.AddKeyword("javascript:", KeywordClass::UNICODE);
+    Search.AddKeyword("RunHTMLApplication", KeywordClass::UNICODE);
+    Search.Create();
+    ItemCache = new ItemCacheClass(C);
+  }
+
+  virtual void ScanNode (ConnectionClass con, SnapshotClass snap, DeviceInfoClass devList) {
+    Console.WriteLine("Scanning host: {0}", con.Name());
+    foreach (DeviceInfoClass di in devList) {
+      if (di.IsPhysical() == false) {
+        forall (EntryClass entry in GetEntryRoot(di)) {
+          if (entry.IsFolder() == false && FileList.Find(entry.Name())) {
+            Console.WriteLine(" Mounting hive: {0}", entry.ItemPath());
+            if (VolumeClass vol = entry.MountVolume(0)) {
+              Console.WriteLine("  Done.");
+              forall (EntryClass reg in vol) {
+                if (reg.IsFolder() == false && reg.LogicalSize() > 60) {
+                  FileClass file = ItemCache.GetRawFile(reg);
+                  Search.Find(file);
+                  if (ValidateSearch(Search)) {
+                    String data;
+                    file.Seek(0);
+                    file.ReadString(data);
+                    Console.WriteLine("!!! Suspicious value found at:\n  {0}", reg.ItemPath());
+                    Console.WriteLine("!!! Value data:\n{0}\n======= end of data =======\n", data);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    Console.WriteLine("Host done: {0}", con.Name());
+  }
+  
+  // function used to validate that there is a hit for each of 3 keywords used
+  bool ValidateSearch (SearchClass search) {
+    bool key0, key1, key2;
+    forall (SearchClass::HitClass hit in search.GetHits()) {
+      switch (hit.KeywordIndex()) {
+        case 0:
+          key0 = true;
+          break;
+        case 1:
+          key1 = true;
+          break;
+        case 2:
+          key2 = true;
+          break;
+      }
+    }
+    return key0 && key1 && key2;
+  }
+}
+
+class MainClass {
+  void Main(CaseClass c) {
+    SystemClass::ClearConsole(1);
+    EulaScanClass scan();
+    scan.ShowDialog();
+    Console.WriteLine("Starting Poweliks Registry Scan...");
+    scan.RunScan();
+    Console.WriteLine("Scan Finished.");
+  }
+}
