@@ -1,7 +1,7 @@
 #Scripts using the Framework
 |Script|Description|Screen|
 |---|---|---|
-|**Dynamic DNS Scan**|Scan for DNS cache entries with dynaminc DNS domains|<img src="https://github.com/JamesHabben/EnCaseNetworkFramework/blob/master/Screens/dyndns.png"/>|
+|**Dynamic DNS Scan**|Scan for DNS cache entries with dynaminc DNS domains. Input domains from dyn-dns-domains.txt file.|<img src="https://github.com/JamesHabben/EnCaseNetworkFramework/blob/master/Screens/dyndns.png"/>|
 |**Poweliks Reg Scan**|Scan a network for the existance of Poweliks style registry keys used for persistence|<img src="https://github.com/JamesHabben/EnCaseNetworkFramework/blob/master/Screens/poweliks.png"/>|
 |**Sysinternals Eula Scan**|Scan a network for the existance of eula registry keys indicating usage of a Sysinternals tool on each node.  Output is currently in the console tab and lists each tool that has the EulaAccepted value name in NTUSER.DAT\\Software\\Sysinternals subkeys.|<img src="https://github.com/JamesHabben/EnCaseNetworkFramework/blob/master/Screens/sysinteula.png"/>|
 
