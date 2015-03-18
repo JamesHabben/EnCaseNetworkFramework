@@ -1,0 +1,61 @@
+//===============================================
+// Dynamic DNS Scanner
+// Written by: James Habben
+// Version: 1.0
+// Updated: 2015-3-15
+//===============================================
+include "EncaseNetworkFrameworkLib"
+
+class DynDnsScanClass : NetworkFrameworkClass {
+  NameListClass DnsDomains;
+  ItemCacheClass ItemCache;
+  CaseClass C;
+
+  DynDnsScanClass () :
+    super("Dynamic DNS Scan"),
+    HelpText("Scan a network for the existance of dynamic DNS entries"),
+    DnsDomains(),
+    C()
+  {
+    ItemCache = new ItemCacheClass(C);
+    LoadDomainList();
+  }
+
+  void LoadDomainList () {
+    LocalFileClass lf();
+    if (lf.Open(SystemClass::ScriptPath().GetFilePath() + "\\dyn-dns-domains.txt", TEXTCRLF)) {
+      while (lf.More()) {
+        String domain;
+        lf.ReadString(domain, -1, "\n");
+        domain.Trim(" \t", TRIMALL);
+        if (domain != "") {
+          new NameListClass (DnsDomains, domain);
+        }
+      }
+      lf.Close();
+    }
+  }
+
+  virtual void ScanNode (ConnectionClass con, SnapshotClass snap, DeviceInfoClass devList) {
+    foreach (DNSClass dns in snap.DNSRoot()) {
+      String temp = dns.Name();
+      String host = temp.GetFileExt();
+      temp.ReplaceExtension();
+      host = String::Format("{0}.{1}", temp.GetFileExt(), host);
+      if (DnsDomains.Find(host)) {
+        Console.WriteLine("{0}: {1}", con.Name(), dns.Name());
+      }
+    }
+  }
+}
+
+class MainClass {
+  void Main(CaseClass c) {
+    SystemClass::ClearConsole(1);
+    DynDnsScanClass scan();
+    scan.ShowDialog();
+    Console.WriteLine("Starting Dynamic DNS Scan...");
+    scan.RunScan();
+    Console.WriteLine("Scan Finished.");
+  }
+}
