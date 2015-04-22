@@ -1,0 +1,88 @@
+//===============================================
+// RegHexDump Registry Scanner
+// Written by: James Habben
+// Version: 1.0
+// Updated: 2014-12-10
+// Based on: @patrickrolsen
+// https://sysforensics.org/2015/04/your-registry-blobs-belong-to-me-reghexdump.html
+//===============================================
+include "EncaseNetworkFrameworkLib"
+
+class RegHexDumpScanClass;
+
+class MainDialogClass : NetworkDialogClass {
+  
+  UIntEditClass UntValueSize;
+  
+  MainDialogClass (RegHexDumpScanClass n, const String &title) :
+    super(n, title),
+    UntValueSize(this, "Value Size Threshold", START, NEXT, 100, DEFAULT, 0, n.ValueSize, 0, -1, 0)
+  {
+  }
+}
+
+class RegHexDumpScanClass : NetworkFrameworkClass {
+  String FileNames;
+  NameListClass FileList;
+  ItemCacheClass ItemCache;
+  CaseClass C;
+  uint ValueSize;
+
+  RegHexDumpScanClass () :
+    super("RegHexDump Scanner"),
+    HelpText("Scan a network for the existance of registry blobs over a certain size"),
+    FileNames("system, software, ntuser.dat"),
+    FileList(),
+    C()
+    
+  {
+    FileList.Parse(FileNames, ",");
+    ItemCache = new ItemCacheClass(C);
+    Dialog = new MainDialogClass(this, "RegHexDump Scanner");
+  }
+
+  virtual void ScanNode (ConnectionClass con, SnapshotClass snap, DeviceInfoClass devList) {
+    Console.WriteLine("Scanning host: {0}", con.Name());
+    foreach (DeviceInfoClass di in devList) {
+      if (di.IsPhysical() == false) {
+        forall (EntryClass entry in GetEntryRoot(di)) {
+          if (entry.IsFolder() == false && FileList.Find(entry.Name())) {
+            Console.WriteLine(" Mounting hive: {0}", entry.ItemPath());
+            if (VolumeClass vol = entry.MountVolume(0)) {
+              Console.WriteLine("  Done.");
+              forall (EntryClass reg in vol) {
+                if (reg.IsFolder() == false && reg.LogicalSize() > ValueSize && reg.Description().Contains("BINARY")) {
+                  FileClass file = ItemCache.GetRawFile(reg);
+                  file.Seek(0);
+                  Console.WriteLine("!!! Suspicious value found at:\n  {0}", reg.ItemPath());
+                  Console.WriteLine("!!! Value size: {0}", ValueSize);
+                  while (file.More()) {
+                    Console.Write("!!! ");
+                    for (int i; i < 50; ++i) {
+                      Console.Write("{0} ", String::FormatInt(file.ReadBinaryInt(1), int::HEX, 0, 2));
+                    }
+                    Console.WriteLine();
+                  }
+                  Console.WriteLine("!!! ======= end of data =======\n");
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    Console.WriteLine("Host done: {0}", con.Name());
+  }
+
+}
+
+class MainClass {
+  void Main(CaseClass c) {
+    SystemClass::ClearConsole(1);
+    RegHexDumpScanClass scan();
+    scan.ShowDialog();
+    Console.WriteLine("Starting RegHexDump Registry Scan...");
+    scan.RunScan();
+    Console.WriteLine("Scan Finished.");
+  }
+}
